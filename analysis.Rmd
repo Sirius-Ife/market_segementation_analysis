@@ -1,0 +1,144 @@
+---
+title: "Market Segmentation Analysis"
+author: "Sirius Ife"
+date: "2024-03-11"
+output: html_document
+---
+
+# Introduction
+
+In this project, we will conduct an unsupervised learning analysis on marketing data to uncover patterns and segments within the customer base. The goal is to gain insights that can inform targeted marketing strategies and enhance business decision-making.
+
+## Objective
+- Perform exploratory data analysis (EDA) to understand the dataset.
+- Pre-process the data by handling missing values, outliers, and encoding categorical variables.
+- Conduct dimensionality reduction using PCA (Principal Component Analysis) to identify important features.
+- Apply k-means clustering to segment the customer base.
+- Interpret the clusters and derive actionable insights for marketing strategies.
+
+# Load Packages
+
+```{r}
+library(tidyverse) 
+library(lubridate)
+library(corrplot)
+library(caret)
+library(FactoMineR)
+library(factoextra)
+library(cluster)
+```
+
+# Importing Data
+
+```{r}
+customers <- read.delim("marketing_campaign.csv", stringsAsFactors = FALSE)
+head(customers)
+```
+
+# Exploratory Data Analysis (EDA)
+
+```{r}
+# Check dimensions and summary statistics
+dim(customers)
+summary(customers)
+
+# Remove rows with missing income values
+customers <- customers %>% filter(!is.na(Income))
+
+# Visualize distribution of income and year of birth
+ggplot(customers, aes(y = Income)) + geom_boxplot() 
+ggplot(customers, aes(Year_Birth)) + geom_boxplot()
+```
+
+# Pre-Processing Data
+
+```{r}
+# Convert Dt_Customer to date format
+customers <- customers %>% mutate(Dt_Customer = as.Date(dmy(Dt_Customer)))
+
+# Create age variable from year of birth
+customers <- customers %>% mutate(Age = 2024 - Year_Birth)
+customers <- customers %>% filter(Age < 90)  # Remove outliers
+
+# Collapse marital status into two categories: Single & Taken
+customers <- customers %>% mutate(Marital_Status = ifelse(Marital_Status %in% c("Divorced", "Widow", "Alone", "Absurd", "YOLO"), "Single", "Taken"))
+
+# Collapse education into two categories: Graduate & Non-graduate
+customers <- customers %>% mutate(Education = ifelse(Education %in% c("Graduation", "PhD", "Master"), "Graduate", "Non-graduate"))
+
+# Convert categorical variables to factors
+customers <- customers %>% mutate(Marital_Status = as.factor(Marital_Status), Education = as.factor(Education))
+
+# Rename features and create Total_spent variable
+customers <- customers %>% rename(wines = MntWines, fruits = MntFruits, meat = MntMeatProducts, fish = MntFishProducts, sweet = MntSweetProducts, gold = MntGoldProds )
+customers <- customers %>% mutate(Total_spent = wines + fruits + meat + fish + sweet + gold)
+
+# Remove redundant features
+customers <- customers %>% select(- ID, - Year_Birth, - Dt_Customer, - Z_CostContact, - Z_Revenue)
+```
+
+# Correlation Analysis
+
+```{r}
+# Calculate correlation matrix
+cust_cor <- cor(customers[,3:17])
+corrplot(cust_cor, method = "color", order = "hclust", addCoef.col = "black", number.cex = .6)
+```
+
+# Dimensionality Reduction: PCA
+
+```{r}
+# Running PCA
+customers_pca <- PCA(customers[, c(3, 6:17, 25:26)], graph = FALSE)
+
+# Summary of PCA
+summary(customers_pca)
+
+# Plotting contributions of variables
+fviz_pca_var(customers_pca, col.var = "contrib", gradient.cols = c("#002bbb", "#bb2e00"), repel = TRUE)
+
+# Plotting top 5 variables with highest contributions
+fviz_pca_var(customers_pca, select.var = list(contrib = 5), repel = TRUE)
+
+# Barplotting the contributions of variables
+fviz_contrib(customers_pca, choice = "var", axes = 1, top = 5)
+```
+
+# Biplots
+
+```{r}
+fviz_pca_biplot(customers_pca)
+```
+
+# K-Means Clustering
+
+```{r}
+# Elbow method to determine optimal k
+tot_withinss <- map_dbl(1:10, function(k){
+  model <- kmeans(x = customers[, c(3, 6:17, 25:26)], centers = k)
+  model$tot.withinss
+})
+
+elbow_df <- data.frame(k = 1:10, tot_withinss = tot_withinss)
+head(elbow_df)
+
+# Plotting the elbow plot
+ggplot(elbow_df, aes(k, tot_withinss)) + geom_line() + scale_x_continuous(breaks = 1:10)
+
+# Silhouette analysis
+sil_width <- map_dbl(2:10, function(k){
+    model <- pam(customers[, c(3, 6:17, 25:26)], k = k)
+    model$silinfo$avg.width
+})
+
+sil_df <- data.frame(k = 2:10, sil_width = sil_width)
+head(sil_df)
+
+ggplot(sil_df, aes(k, sil_width)) + geom_line() + scale_x_continuous(breaks = 2:10) + labs(y = "Avg sil width")
+
+# K-means clustering with k=2
+set.seed(77)
+customers_cluster <- kmeans(customers[, c(3, 6:17, 25:26)], centers = 2)
+
+```
+
