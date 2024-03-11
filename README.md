@@ -1,7 +1,3 @@
-Sure, here's a README file for the project:
-
----
-
 # Market Segmentation Analysis
 
 This project focuses on market segmentation analysis using data analytics techniques, specifically implemented in R. Market segmentation is a crucial aspect of marketing strategy, aiming to divide a diverse market into smaller, more manageable segments based on common characteristics, behaviors, or needs.
