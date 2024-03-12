@@ -9,7 +9,6 @@ This project focuses on market segmentation analysis using data analytics techni
 - [How to Use](#how-to-use)
 - [Contributing](#contributing)
 - [Author](#author)
-- [License](#license)
 - [Acknowledgments](#acknowledgments)
 
 ## Introduction
